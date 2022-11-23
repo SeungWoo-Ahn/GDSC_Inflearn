@@ -1,11 +1,11 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:bucket_list_with_firebase/controller/bucket_controller.dart';
+import 'package:bucket_list_with_firebase/model/bucket_model.dart';
+import 'package:bucket_list_with_firebase/utils/constants.dart';
+import 'package:bucket_list_with_firebase/utils/firestore_db.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
+import 'package:get/get.dart';
 
-import '../service/auth_service.dart';
-import '../service/bucket_service.dart';
 import 'login_page.dart';
 
 /// 홈페이지
@@ -31,7 +31,7 @@ class _BucketAppBar extends StatelessWidget implements PreferredSizeWidget {
   Widget build(BuildContext context) {
     // 로그아웃
     void logout() {
-      context.read<AuthService>().signOut();
+      authController.logout();
 
       // 로그인 페이지로 이동
       Navigator.pushReplacement(
@@ -87,16 +87,18 @@ class _HeaderInputArea extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bucketService = context.watch<BucketService>();
-    final authService = context.read<AuthService>();
-    User user = authService.currentUser()!; // ! 는 null을 벗겨줌
-
     final TextEditingController jobController = TextEditingController();
 
     // 버킷 추가하기
-    void addBucket() {
+    void addBucket() async {
+      final bucketModel = BucketModel(
+        job: jobController.text.trim(),
+        isDone: false,
+      );
+
       if (jobController.text.isNotEmpty) {
-        bucketService.create(jobController.text, user.uid);
+        await FirestoreDb.create(bucketModel);
+        jobController.clear();
       }
     }
 
@@ -117,7 +119,7 @@ class _HeaderInputArea extends StatelessWidget {
           /// 추가 버튼
           ElevatedButton(
             child: Icon(Icons.add),
-            onPressed: () {
+            onPressed: () async {
               addBucket();
             },
           ),
@@ -135,32 +137,23 @@ class _BucketList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bucketService = context.watch<BucketService>();
-    final authService = context.read<AuthService>();
-    User user = authService.currentUser()!; // ! 는 null을 벗겨줌
-
-    return Expanded(
-      child: FutureBuilder<QuerySnapshot>(
-          future: bucketService.read(user.uid),
-          builder: (context, snapshot) {
-            final documents =
-                snapshot.data?.docs ?? []; // ?. data가 있을때만 실행, 없으면 빈 배열 반환
-            return documents.isEmpty
-                ? _EmptyBucketView()
-                : ListView.builder(
-                    itemCount: documents.length,
-                    itemBuilder: (context, index) {
-                      final doc = documents[index];
-                      String job = doc.get("job");
-                      bool isDone = doc.get("isDone");
-                      return _BuckListItem(
-                          job: job,
-                          isDone: isDone,
-                          bucketService: bucketService,
-                          doc: doc);
-                    },
-                  );
-          }),
+    return GetX<BucketController>(
+      init: Get.put<BucketController>(BucketController()),
+      builder: (BucketController controller) {
+        return Expanded(
+          child: controller.buckets.isEmpty
+              ? _EmptyBucketView()
+              : ListView.builder(
+                  itemCount: controller.buckets.length,
+                  itemBuilder: (context, index) {
+                    final bucketModel = controller.buckets[index];
+                    return _BuckListItem(
+                      model: bucketModel,
+                    );
+                  },
+                ),
+        );
+      },
     );
   }
 }
@@ -169,26 +162,21 @@ class _BucketList extends StatelessWidget {
 class _BuckListItem extends StatelessWidget {
   const _BuckListItem({
     Key? key,
-    required this.job,
-    required this.isDone,
-    required this.bucketService,
-    required this.doc,
+    required this.model,
   }) : super(key: key);
 
-  final String job;
-  final bool isDone;
-  final BucketService bucketService;
-  final QueryDocumentSnapshot<Object?> doc;
+  final BucketModel model;
 
   @override
   Widget build(BuildContext context) {
     return ListTile(
       title: Text(
-        job,
+        model.job,
         style: TextStyle(
           fontSize: 24,
-          color: isDone ? Colors.grey : Colors.black,
-          decoration: isDone ? TextDecoration.lineThrough : TextDecoration.none,
+          color: model.isDone ? Colors.grey : Colors.black,
+          decoration:
+              model.isDone ? TextDecoration.lineThrough : TextDecoration.none,
         ),
       ),
       // 삭제 아이콘 버튼
@@ -196,12 +184,12 @@ class _BuckListItem extends StatelessWidget {
         icon: Icon(CupertinoIcons.delete),
         onPressed: () {
           // 삭제 버튼 클릭시
-          bucketService.delete(doc.id);
+          FirestoreDb.deleteBucket(model.documentId!);
         },
       ),
       onTap: () {
         // 아이템 클릭하여 isDone 업데이트
-        bucketService.update(doc.id, !isDone);
+        FirestoreDb.updateStatus(!model.isDone, model.documentId);
       },
     );
   }
