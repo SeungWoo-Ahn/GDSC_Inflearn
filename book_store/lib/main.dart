@@ -10,12 +10,12 @@ void main() {
     providers: [
       ChangeNotifierProvider(create: (context) => BookService()),
     ],
-    child: const MyApp(),
+    child: const BookHomePage(),
   ));
 }
 
-class MyApp extends StatelessWidget {
-  const MyApp({Key? key}) : super(key: key);
+class BookHomePage extends StatelessWidget {
+  const BookHomePage({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -29,26 +29,24 @@ class MyApp extends StatelessWidget {
 final TextEditingController searchController = TextEditingController();
 
 class HomePage extends StatelessWidget {
-  HomePage({Key? key}) : super(key: key);
+  const HomePage({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<BookService>(
-      builder: ((context, bookService, child) {
-        return Scaffold(
-          appBar: _searchAppBar(bookService),
-          body: bookService.bookList.isEmpty
-              ? EmptyItem()
-              : BookList(bookService: bookService),
-        );
-      }),
+    final bookList = context.watch<BookService>().bookList;
+    return Scaffold(
+      appBar: _SearchAppBar(),
+      body: bookList.isEmpty ? EmptyItem() : _BookList(),
     );
   }
 }
 
-// 검색가능 앱 바
-PreferredSizeWidget _searchAppBar(BookService bookService) {
-  return AppBar(
+//AppBar with Search Bar
+class _SearchAppBar extends StatelessWidget implements PreferredSizeWidget {
+  @override
+  Widget build(BuildContext context) {
+    final bookService = context.watch<BookService>();
+    return AppBar(
       backgroundColor: Colors.white,
       title: Text(
         "Book Store",
@@ -74,11 +72,24 @@ PreferredSizeWidget _searchAppBar(BookService bookService) {
         )
       ],
       centerTitle: false,
-      bottom: _searchArea(bookService));
+      bottom: _searchArea(bookService),
+    );
+  }
+
+  @override
+  Size get preferredSize => const Size.fromHeight(kToolbarHeight + 72);
 }
 
 // 검색 창
 PreferredSizeWidget _searchArea(BookService bookService) {
+  // 검색 메서드
+  void search(BookService bookService, TextEditingController controller) {
+    String keyword = controller.text;
+    if (keyword.isNotEmpty) {
+      bookService.getBookList(keyword);
+    }
+  }
+
   return PreferredSize(
     preferredSize: Size(double.infinity, 72),
     child: Padding(
@@ -105,21 +116,16 @@ PreferredSizeWidget _searchArea(BookService bookService) {
   );
 }
 
-// 검색 결과 리스트
-class BookList extends StatelessWidget {
-  const BookList({
-    Key? key,
-    required this.bookService,
-  }) : super(key: key);
-
-  final BookService bookService;
+class _BookList extends StatelessWidget {
+  const _BookList({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final bookList = context.watch<BookService>().bookList;
     return ListView.builder(
-      itemCount: bookService.bookList.length,
+      itemCount: bookList.length,
       itemBuilder: (context, index) {
-        Book book = bookService.bookList[index];
+        Book book = bookList[index];
         return ListItem(book: book);
       },
     );
@@ -134,6 +140,12 @@ class ListItem extends StatelessWidget {
   }) : super(key: key);
 
   final Book book;
+
+  // 링크 이동 메서드
+  void linkToPage(String link) {
+    Uri uri = Uri.parse(link);
+    launchUrl(uri);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -184,16 +196,55 @@ class EmptyItem extends StatelessWidget {
   }
 }
 
-// 검색 메서드
-void search(BookService bookService, TextEditingController controller) {
-  String keyword = controller.text;
-  if (keyword.isNotEmpty) {
-    bookService.getBookList(keyword);
-  }
-}
+// // 검색가능 앱 바
+// PreferredSizeWidget _searchAppBar(BookService bookService) {
+//   return AppBar(
+//     backgroundColor: Colors.white,
+//     title: Text(
+//       "Book Store",
+//       style: TextStyle(
+//         fontSize: 24,
+//         fontWeight: FontWeight.bold,
+//         color: Colors.black,
+//       ),
+//     ),
+//     actions: [
+//       Container(
+//         alignment: Alignment.bottomCenter,
+//         padding: EdgeInsets.only(
+//           right: 12,
+//         ),
+//         child: Text(
+//           "total ${bookService.bookList.length}",
+//           style: TextStyle(
+//             color: Colors.black,
+//             fontSize: 16,
+//           ),
+//         ),
+//       )
+//     ],
+//     centerTitle: false,
+//     bottom: _searchArea(bookService),
+//   );
+// }
 
-// 링크 이동 메서드
-void linkToPage(String link) {
-  Uri uri = Uri.parse(link);
-  launchUrl(uri);
-}
+// // 검색 결과 리스트
+// class BookList extends StatelessWidget {
+//   const BookList({
+//     Key? key,
+//     required this.bookService,
+//   }) : super(key: key);
+
+//   final BookService bookService;
+
+//   @override
+//   Widget build(BuildContext context) {
+//     return ListView.builder(
+//       itemCount: bookService.bookList.length,
+//       itemBuilder: (context, index) {
+//         Book book = bookService.bookList[index];
+//         return ListItem(book: book);
+//       },
+//     );
+//   }
+// }
