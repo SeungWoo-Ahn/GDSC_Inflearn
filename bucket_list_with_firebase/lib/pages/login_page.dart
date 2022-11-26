@@ -1,7 +1,6 @@
+import 'package:bucket_list_with_firebase/utils/constants.dart';
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 
-import '../service/auth_service.dart';
 import 'home_page.dart';
 
 /// 로그인 페이지
@@ -32,8 +31,6 @@ class _LoginBody extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final authService = context.watch<AuthService>();
-
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -82,7 +79,7 @@ class _PasswordField extends StatelessWidget {
   Widget build(BuildContext context) {
     return TextField(
       controller: passwordController,
-      obscureText: false, // 비밀번호 안보이게
+      obscureText: true, // 비밀번호 안보이게
       decoration: InputDecoration(hintText: "비밀번호"),
     );
   }
@@ -111,11 +108,9 @@ class _LoginButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final authService = context.watch<AuthService>();
-
     // 로그인
     void login() {
-      authService.signIn(
+      authController.login(
         email: emailController.text,
         password: passwordController.text,
         onSuccess: () {
@@ -137,6 +132,9 @@ class _LoginButton extends StatelessWidget {
           ));
         },
       );
+
+      emailController.clear();
+      passwordController.clear();
     }
 
     return ElevatedButton(
@@ -156,11 +154,9 @@ class _SignUpButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final authService = context.watch<AuthService>();
-
     // 회원가입
-    void singUp() {
-      authService.signUp(
+    void register() {
+      authController.register(
         email: emailController.text,
         password: passwordController.text,
         onSuccess: () {
@@ -181,7 +177,7 @@ class _SignUpButton extends StatelessWidget {
     return ElevatedButton(
       child: Text("회원가입", style: TextStyle(fontSize: 21)),
       onPressed: () {
-        singUp();
+        register();
       },
     );
   }

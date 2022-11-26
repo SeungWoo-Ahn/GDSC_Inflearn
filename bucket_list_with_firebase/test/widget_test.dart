@@ -13,7 +13,7 @@ import 'package:bucket_list_with_firebase/main.dart';
 void main() {
   testWidgets('Counter increments smoke test', (WidgetTester tester) async {
     // Build our app and trigger a frame.
-    await tester.pumpWidget(const MyApp());
+    await tester.pumpWidget(BucketApp());
 
     // Verify that our counter starts at 0.
     expect(find.text('0'), findsOneWidget);
